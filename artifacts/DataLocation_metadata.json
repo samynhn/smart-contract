@@ -1,0 +1,79 @@
+{
+	"compiler": {
+		"version": "0.4.26+commit.4563c3fc"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"constant": true,
+				"inputs": [
+					{
+						"name": "",
+						"type": "uint256[]"
+					}
+				],
+				"name": "test4",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "pure",
+				"type": "function"
+			},
+			{
+				"constant": true,
+				"inputs": [
+					{
+						"name": "",
+						"type": "uint256[]"
+					}
+				],
+				"name": "test1",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "pure",
+				"type": "function"
+			},
+			{
+				"constant": false,
+				"inputs": [
+					{
+						"name": "memoryArray",
+						"type": "uint256[]"
+					}
+				],
+				"name": "test2",
+				"outputs": [],
+				"payable": false,
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"methods": {}
+		},
+		"userdoc": {
+			"methods": {}
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"Documents/GitHub/smart-contract/Datalocation.sol": "DataLocation"
+		},
+		"evmVersion": "byzantium",
+		"libraries": {},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"Documents/GitHub/smart-contract/Datalocation.sol": {
+			"keccak256": "0xc64ec13041a3acc920561e0aa078639cc560262ff3fc898b7e8750f9d0e1d8fe",
+			"urls": [
+				"bzzr://eadfbe891d236c944fded442a62a5198d2594a3cefe6863a043cb364bd546b96"
+			]
+		}
+	},
+	"version": 1
+}
