@@ -75,7 +75,7 @@ contract AddressBook {
     }
     //
     function deleteIdByIndex(uint256 index) private {
-        if(index > idArray.length)
+        if(index >= idArray.length)
         revert("Index Error");
 
         for(uint256 i=index ; i < idArray.length-1; i++){
