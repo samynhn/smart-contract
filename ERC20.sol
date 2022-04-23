@@ -6,12 +6,11 @@ contract ERC20TokenContract{
 
     // string name="ERC20TokenContract";//寫死name
     //寫public varible 就不用寫name func去return值
-    string public name;
-    string public symbol;
+    string public name = "ERC20";
+    string public symbol = "SHAWN";
     uint8 public decimals = 0; //不需用到uint256
     uint256 public totalSupply = 10000;
-    uint256 private totalEth = 0;
-    uint256 public price = 1;
+    uint256 private price = 5 * 1 ether; //wei
     mapping(address=>uint256) balances;
     mapping(address=>mapping(address=>uint256)) allowed; //帳戶address=>(代理人address=>可動用token數量):缺點 代理人帳號只能有一個
 
@@ -26,37 +25,45 @@ contract ERC20TokenContract{
         _;
     }
 
-    function getContractEth() public view onlyOwner returns (uint eth){
-        return totalEth;
-    }
+
     
 // 將合約以太幣轉給owner(未寫) or owner 可以將合約帳號eth轉給其他帳號
 //  一個帳號只能買一次（未寫）
     function() public payable{
-        // if(totalSupply>=10 && msg.value == 1 ether) { // msg.value：傳送的 eth
-        //     totalEth += 1;
-        //     totalSupply -= 10; // totalSupply ＝ 合約剩的token
-        //     balances[msg.sender] += 10;
+        // if(totalSupply>=1 && msg.value == 1 ether) { // msg.value：傳送的 eth
+        //     totalSupply -= 1; // totalSupply ＝ 合約剩的token
+        //     balances[msg.sender] += 1;
         // }else{
         //     revert();
         // }
-        // if(totalSupply>=10) { // msg.value：傳送的 eth
-        //     if(msg.value > price){
-        //         uint over = msg.value - price;
-        //         msg.sender.transfer(over);
-        //     }
-        //     totalEth += 1;
-        //     totalSupply -= 10; // totalSupply ＝ 合約剩的token
-        //     balances[msg.sender] += 10;
-        // }else{
-        //     revert();
-        // }
+        if(msg.value < price){ //金額不足
+            revert();
+        }
+        if(totalSupply*price >= msg.value  && msg.value >= price) { // 確保輸入正確金額範圍
+            uint256 num = 1;
+            
+            for(; msg.value > num * price; num++){
+            }// 計算購買數量
+            num--;//減去多算的一次
+
+            uint256 change = msg.value - num*price;
+            msg.sender.transfer(change);//找零
+            
+            totalSupply -= num; // totalSupply ＝ 合約剩的token
+            balances[msg.sender] += num;
+        }else{
+            revert();
+        }
     }
-    constructor(string _name, string _symbol, uint _totalSupply) public {
+
+    // constructor(string _name, string _symbol, uint _totalSupply) public {
+    //     owner = msg.sender;
+    //     name = _name; // 部署時在決定名稱：可以每次部署不同合約 輸入不同值
+    //     symbol = _symbol;
+    //     totalSupply = _totalSupply;
+    // }
+       constructor() public {
         owner = msg.sender;
-        name = _name; // 部署時在決定名稱：可以每次部署不同合約 輸入不同值
-        symbol = _symbol;
-        totalSupply = _totalSupply;
     }
     
     // function name() public view returns (string){
@@ -72,11 +79,24 @@ contract ERC20TokenContract{
     // function totalSupply() public view returns (uint256){
 
     // }
+    function getPrice() public view returns (uint256 eth){
+        return price/ 1 ether;
+    }
+    function getContractBalance() public view onlyOwner returns (uint eth){
+        return address(this).balance / 1 ether;
+    }
     
     function withdraw() public onlyOwner returns (bool success){
-        uint balance = address(this).balance;
-        owner.transfer(balance);
-        return true;
+        //check address(this) is vaild
+        uint256 balance = address(this).balance;// get contract balance
+
+        //check balance > 0 && overflow
+        if(owner.balance + balance > owner.balance){
+            owner.transfer(balance);// 將合約eth轉移到owner帳號
+            return true;
+        }
+        return false;
+        
     }
     // 查看帳戶餘額 : ues mapping (address-> balance) 
     function balanceOf(address _owner) public view returns (uint256 balance){
