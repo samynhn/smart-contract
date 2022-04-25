@@ -6,14 +6,14 @@ contract ERC20TokenContract{
 
     // string name="ERC20TokenContract";//寫死name
     //寫public varible 就不用寫name func去return值
-    string public name = "ERC20";
-    string public symbol = "SHAWN";
+    string public name;
+    string public symbol;
     uint8 public decimals = 0; //不需用到uint256
-    uint256 public totalSupply = 10000;
+    uint256 public totalSupply;
     uint256 public volumn = 0;
     bool public isLimited = false;//帳號購買限制
     uint8 public limit = 0;
-    bool public isMintLocked = false; //設定購買
+    bool public isMintLocked = true; //開啟/關閉購買功能
     uint256 private price = 5 * 1 ether; //wei
     mapping(address=>uint256) balances;
     mapping(address=>mapping(address=>uint256)) allowed; //帳戶address=>(代理人address=>可動用token數量):缺點 代理人帳號只能有一個
@@ -56,14 +56,11 @@ contract ERC20TokenContract{
         
     }
 
-    // constructor(string _name, string _symbol, uint _totalSupply) public {
-    //     owner = msg.sender;
-    //     name = _name; // 部署時在決定名稱：可以每次部署不同合約 輸入不同值
-    //     symbol = _symbol;
-    //     totalSupply = _totalSupply;
-    // }
-       constructor() public {
+    constructor(string _name, string _symbol, uint _totalSupply) public {
         owner = msg.sender;
+        name = _name; // 部署時在決定名稱：可以每次部署不同合約 輸入不同值
+        symbol = _symbol;
+        totalSupply = _totalSupply;
     }
     
     // function name() public view returns (string){
