@@ -118,17 +118,20 @@ contract FamilyTreeContract{
 
     //非祖譜成員 查詢功能(應該用姓名查詢)
     function selectById(string memory _memberID)public view returns(string memory treeID, bytes32 hashID, string memory name, string memory birthday){
+        require(isRegister(_memberID) == true, "Member hasn't been registered.");
         bytes32 _hashID = hash(_memberID);
         return (idToMemMap[_hashID].treeID, idToMemMap[_hashID].hashID, idToMemMap[_hashID].name, idToMemMap[_hashID].birthday);
     }
 
     //祖譜成員 查詢功能
     function selectByIdForFamily(string memory _memberID)public  view returns(string memory treeID, bytes32 hashID, string memory name, address account, string memory birthday, string memory phone){
+        require(isRegister(_memberID) == true, "Member hasn't been registered.");
         bytes32 _hashID = hash(_memberID);
         return (idToMemMap[_hashID].treeID, idToMemMap[_hashID].hashID, idToMemMap[_hashID].name, idToMemMap[_hashID].account, idToMemMap[_hashID].birthday, idToMemMap[_hashID].phone);
     }
 
     function selectByLicense(string memory _memberID)public onlyLicensee(_memberID) view returns(string memory treeID,bytes32 hashID, string memory name, address account, string memory birthday, string memory phone){
+        require(isRegister(_memberID) == true, "Member hasn't been registered.");
         bytes32 _hashID = hash(_memberID);
         return (idToMemMap[_hashID].treeID, idToMemMap[_hashID].hashID, idToMemMap[_hashID].name, idToMemMap[_hashID].account, idToMemMap[_hashID].birthday, idToMemMap[_hashID].phone);
     }
@@ -137,14 +140,17 @@ contract FamilyTreeContract{
         return addrToIDMap[msg.sender];//雜湊值會連在一起
     }
 
-    function approve(string memory _memberID, address to)public onlyLicensee(_memberID){
+    function approve(string memory _memberID, address _to)public onlyLicensee(_memberID){
+        require(_to == address(_to), "invild address");
+        require(msg.sender != _to, "same address"); // avoid same address approving
         bytes32 _hashID = hash(_memberID);
-        idToMemMap[_hashID] = Member({treeID:idToMemMap[_hashID].treeID, hashID:_hashID, account:to, name:idToMemMap[_hashID].name, birthday:idToMemMap[_hashID].birthday, phone:idToMemMap[_hashID].phone});
+        idToMemMap[_hashID] = Member({treeID:idToMemMap[_hashID].treeID, hashID:_hashID, account:_to, name:idToMemMap[_hashID].name, birthday:idToMemMap[_hashID].birthday, phone:idToMemMap[_hashID].phone});
         //新增事件
-        emit Approval(msg.sender, to, _hashID);
+        emit Approval(msg.sender, _to, _hashID);
     }
 
     function destory(string memory _memberID) public onlyLicensee(_memberID){
+        require(isRegister(_memberID) == true, "Member hasn't been registered.");
         (bool find, uint256 index) = getIndexById(_memberID);
         (bool find_addr, uint256 index_addr) = getIndexByAddr(msg.sender);
         if(find == true && index >=0){
