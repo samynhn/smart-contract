@@ -9,28 +9,31 @@
         //tree id 需要嗎 用tree 連接hasID 更：treeID 可用於查詢一個人屬於哪個tree
         //密碼不需要了 由address設定 因為 查詢功能都必須透過metamask
 pragma solidity 0.8.13;
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract FamilyTreeContract{
 
     address public owner; 
-
+    // uint256 public createID = 0;// 產生ＩＤ
+    
     struct Member{
         string treeID;
-        bytes32 hashID;
+        string memberID;
         address account;
         string name;
         string birthday;
         string phone;
     }
 
-    bytes32[] idArray;
+    string[] idArray;
     address[] addrArray;
-   
+    Member[] requestArray;
+
     constructor(){
         owner = msg.sender; // owner == deployer
     }
-    mapping (bytes32=>Member) idToMemMap;  //hashID 對應 member data
-    mapping (address=>bytes32[]) addrToIDMap; // 帳號對應 hashID
+    mapping (string=>Member) idToMemMap;  //memberID 對應 member data
+    mapping (address=>string[]) addrToIDMap; // 帳號對應 memberID
 
 
     modifier onlyOwner(){
@@ -38,33 +41,77 @@ contract FamilyTreeContract{
         _;
     }
     modifier onlyLicensee(string memory _memberID){
-        require(idToMemMap[keccak256(abi.encodePacked(_memberID))].account == msg.sender, "only licensee");
+        require(idToMemMap[_memberID].account == msg.sender, "only licensee");
         _;
     }
-    // modifier onlyFamily(string memory _treeID){
-    //     require(idToMemMap[_memberID].treeID == msg.sender., "only licensee"); //msg.sender 底下沒有treeID
-    //     _;
-    // }
+    modifier onlyFamily(string memory _memberID){
+        uint count=0;
+        for (uint256 index=0; index< addrToIDMap[msg.sender].length; index++){
+            if(compareStrings(idToMemMap[_memberID].treeID, idToMemMap[addrToIDMap[msg.sender][index]].treeID)){
+                count +=1;
+            }
+        }
+        require(count>0, "only licensee"); //msg.sender 底下沒有treeID
+        _;
+    }
     //帳號需要check isfamily 但是address可以控制多個不同家庭帳號（例如子女幫父母）
 
 
-    event Approval(address indexed _owner, address indexed _spender, bytes32 _hashID);
-    // event Request(address indexed _owner, address indexed _spender, uint256 _value);
+    event Approval(address indexed _owner, address indexed _spender, string _memberID);
+    event Request(address indexed _owner, string  _memberID, string  _treeID);
+    event Reject(address indexed _owner, string  _memberID, string  _treeID);
+    event Join(address indexed _owner, string  _memberID, string  _treeID);
+
+
+    function request(string memory _memberID, string memory _treeID) public onlyLicensee(_memberID){
+        requestArray.push(Member({treeID:_treeID, memberID:_memberID, account:msg.sender, name:idToMemMap[_memberID].name, birthday:idToMemMap[_memberID].birthday, phone:idToMemMap[_memberID].phone}));
+        emit Request(msg.sender, _memberID, _treeID);
+    }
+    function getRequestByIndex(uint256 index) public onlyOwner view returns(Member memory){
+        return requestArray[index];
+    }
+
+    function requestNum()public  view returns( uint){
+        return requestArray.length;
+    }
+
+    function join(string memory _memberID, string memory _treeID) public onlyOwner{
+        idToMemMap[_memberID].treeID = _treeID;
+        removeMemberInRequestArryay(_memberID);
+        emit Join(msg.sender, _memberID, _treeID);
+    }
+    function removeMemberInRequestArryay(string memory _memberID) private onlyOwner{
+        (bool find, uint256 index) = getRequestArrayIndex(_memberID);
+        if(find == true && index >=0){
+            if(index > requestArray.length)
+                revert("Index Error");
+
+            for(uint256 i=index ; i < requestArray.length-1; i++){
+                requestArray[i] = requestArray[i+1];
+            }
+            requestArray.pop();
+        }
+    }
+    function getRequestArrayIndex(string memory _memberID)view private returns(bool, uint256){
+        for (uint256 i=0; i< requestArray.length; i++){ // use bool not -1 because uint256 no include -1 it must use int but num(int) == num(uint/2)
+            if(compareStrings(requestArray[i].memberID, _memberID))
+                return(true, i);
+        }
+        return(false, 0);
+    }
+
+    function reject(string memory _memberID, string memory _treeID) public onlyOwner{
+        emit Reject(msg.sender, _memberID, _treeID);
+    }
+
     
+     
 
-
-    function request(string memory _memberID) public onlyLicensee(_memberID){
-
-    }
 //###########################
-
-    function hash(string memory _memberID) private pure returns (bytes32 _hashID) {
-        return keccak256(abi.encodePacked(_memberID));
-    }
 
     function isRegister(string memory _memberID)public view returns (bool){
         for(uint256 i=0 ; i < idArray.length; i++){
-            if(hash(_memberID)==idArray[i]){
+            if(compareStrings(idArray[i], _memberID)){
                 return true;
             }
         }
@@ -77,6 +124,7 @@ contract FamilyTreeContract{
             num++;
         }
         return num;
+        // return total;
     }
 
     function numOfaddr() public view returns(uint256){
@@ -94,59 +142,57 @@ contract FamilyTreeContract{
 
 //###########################
 
-    function create(string memory _memberID, string memory _name, string memory _birthday, string memory _phone) public { // string need memory , address(calldata) no need memory
+    function create(string memory _memberID, string memory _name, string memory _birthday, string memory _phone) public returns(string memory ){ // string need memory , address(calldata) no need memory
+        // createID += 1;
+        // string memory _memberID = Strings.toString(createID);
         require(isRegister(_memberID)==false, "Member has been registered.");
-        bytes32 _hashID = hash(_memberID);
         // address account = msg.sender;
-        idToMemMap[_hashID] = Member({treeID:"", hashID:_hashID, account:msg.sender, name:_name, birthday:_birthday, phone:_phone}); // default treeId = ""
-        addrToIDMap[msg.sender].push(_hashID);// one address can control multiple member
-        idArray.push(_hashID); // push id to idArray
+        idToMemMap[_memberID] = Member({treeID:"", memberID:_memberID, account:msg.sender, name:_name, birthday:_birthday, phone:_phone}); // default treeId = ""
+        addrToIDMap[msg.sender].push(_memberID);// one address can control multiple member
+        idArray.push(_memberID); // push id to idArray
 
         (bool find_addr,) = getIndexByAddr(msg.sender);
         if(find_addr){ // if addr had registered others member before
         }else{
             addrArray.push(msg.sender);
         }
+
+        return _memberID;
         
     }
     
     function update(string memory _memberID, string memory _name, string memory _birthday, string memory _phone) public onlyLicensee(_memberID)  {
         require(isRegister(_memberID) == true, "Member hasn't been registered.");
-        bytes32 _hashID = hash(_memberID);
-        idToMemMap[_hashID] = Member({treeID:idToMemMap[_hashID].treeID, hashID:_hashID, account:idToMemMap[_hashID].account, name:_name, birthday:_birthday, phone:_phone});
+        idToMemMap[_memberID] = Member({treeID:idToMemMap[_memberID].treeID, memberID:idToMemMap[_memberID].memberID, account:idToMemMap[_memberID].account, name:_name, birthday:_birthday, phone:_phone});
     }
 
     //非祖譜成員 查詢功能(應該用姓名查詢)
-    function selectById(string memory _memberID)public view returns(string memory treeID, bytes32 hashID, string memory name, string memory birthday){
+    function selectById(string memory _memberID)public view returns(string memory treeID, string memory memberID, string memory name, string memory birthday){
         require(isRegister(_memberID) == true, "Member hasn't been registered.");
-        bytes32 _hashID = hash(_memberID);
-        return (idToMemMap[_hashID].treeID, idToMemMap[_hashID].hashID, idToMemMap[_hashID].name, idToMemMap[_hashID].birthday);
+        return (idToMemMap[_memberID].treeID, idToMemMap[_memberID].memberID, idToMemMap[_memberID].name, idToMemMap[_memberID].birthday);
     }
 
     //祖譜成員 查詢功能
-    function selectByIdForFamily(string memory _memberID)public  view returns(string memory treeID, bytes32 hashID, string memory name, address account, string memory birthday, string memory phone){
+    function selectByIdForFamily(string memory _memberID)public onlyFamily(_memberID) view returns(string memory treeID, string memory memberID, string memory name, address account, string memory birthday, string memory phone){
         require(isRegister(_memberID) == true, "Member hasn't been registered.");
-        bytes32 _hashID = hash(_memberID);
-        return (idToMemMap[_hashID].treeID, idToMemMap[_hashID].hashID, idToMemMap[_hashID].name, idToMemMap[_hashID].account, idToMemMap[_hashID].birthday, idToMemMap[_hashID].phone);
+        return (idToMemMap[_memberID].treeID, idToMemMap[_memberID].memberID, idToMemMap[_memberID].name, idToMemMap[_memberID].account, idToMemMap[_memberID].birthday, idToMemMap[_memberID].phone);
     }
 
-    function selectByLicense(string memory _memberID)public onlyLicensee(_memberID) view returns(string memory treeID,bytes32 hashID, string memory name, address account, string memory birthday, string memory phone){
+    function selectByLicense(string memory _memberID)public onlyLicensee(_memberID) view returns(string memory treeID,string memory memberID, string memory name, address account, string memory birthday, string memory phone){
         require(isRegister(_memberID) == true, "Member hasn't been registered.");
-        bytes32 _hashID = hash(_memberID);
-        return (idToMemMap[_hashID].treeID, idToMemMap[_hashID].hashID, idToMemMap[_hashID].name, idToMemMap[_hashID].account, idToMemMap[_hashID].birthday, idToMemMap[_hashID].phone);
+        return (idToMemMap[_memberID].treeID, idToMemMap[_memberID].memberID, idToMemMap[_memberID].name, idToMemMap[_memberID].account, idToMemMap[_memberID].birthday, idToMemMap[_memberID].phone);
     }
     
-    function gethashID()public view returns(bytes32 [] memory ){
+    function getmemberID()public view returns(string [] memory ){
         return addrToIDMap[msg.sender];//雜湊值會連在一起
     }
 
     function approve(string memory _memberID, address _to)public onlyLicensee(_memberID){
         require(_to == address(_to), "invild address");
         require(msg.sender != _to, "same address"); // avoid same address approving
-        bytes32 _hashID = hash(_memberID);
-        idToMemMap[_hashID] = Member({treeID:idToMemMap[_hashID].treeID, hashID:_hashID, account:_to, name:idToMemMap[_hashID].name, birthday:idToMemMap[_hashID].birthday, phone:idToMemMap[_hashID].phone});
+        idToMemMap[_memberID] = Member({treeID:idToMemMap[_memberID].treeID, memberID:_memberID, account:_to, name:idToMemMap[_memberID].name, birthday:idToMemMap[_memberID].birthday, phone:idToMemMap[_memberID].phone});
         //新增事件
-        emit Approval(msg.sender, _to, _hashID);
+        emit Approval(msg.sender, _to, _memberID);
     }
 
     function destory(string memory _memberID) public onlyLicensee(_memberID){
@@ -154,8 +200,8 @@ contract FamilyTreeContract{
         (bool find, uint256 index) = getIndexById(_memberID);
         (bool find_addr, uint256 index_addr) = getIndexByAddr(msg.sender);
         if(find == true && index >=0){
-            delete idToMemMap[hash(_memberID)]; //delete member in map
-            deleteIdByIndex(index); // delete hashID in idArray
+            delete idToMemMap[_memberID]; //delete member in map
+            deleteIdByIndex(index); // delete memberID in idArray
         }
         if(find_addr==true && index_addr>=0){
             deleteIDinAddrToIDMap(_memberID); // delete member in member[] of map
@@ -165,9 +211,8 @@ contract FamilyTreeContract{
         }
     }
     function deleteIDinAddrToIDMap(string memory _memberID) private {
-        bytes32 _hashID = hash(_memberID); 
         for (uint256 index=0; index< addrToIDMap[msg.sender].length; index++){ // use bool not -1 because uint256 no include -1 it must use int but num(int) == num(uint/2)
-            if(addrToIDMap[msg.sender][index] == _hashID)// if found do Remove()
+            if(compareStrings(addrToIDMap[msg.sender][index], _memberID))// if found do Remove()
                 for(uint256 i=index ; i < addrArray.length-1; i++){
                 addrToIDMap[msg.sender][i] = addrToIDMap[msg.sender][i+1];
                 }
@@ -206,12 +251,15 @@ contract FamilyTreeContract{
     }
 
     function getIndexById(string memory _memberID) private view returns (bool find, uint256 index){ //private or internal
-        bytes32 _hashID = hash(_memberID); 
         for (uint256 i=0; i< idArray.length; i++){ // use bool not -1 because uint256 no include -1 it must use int but num(int) == num(uint/2)
-            if(idArray[i] == _hashID)
+            if(compareStrings(idArray[i], _memberID))
                 return (true, i);
         }
         return (false, 0);
+    }
+
+    function compareStrings(string memory a, string memory b) private pure returns (bool) {
+        return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b))); //雜湊
     }
 
 //###########################
